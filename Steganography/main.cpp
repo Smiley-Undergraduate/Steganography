@@ -1,3 +1,4 @@
+#pragma region includes
 #include <cstdio>
 #include <cstdint>
 
@@ -6,10 +7,14 @@
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include <stb/stb_image_write.h>
+#pragma endregion
 
+#pragma region types
 using channel= uint8_t;
 using pixel = uint32_t;
+#pragma endregion
 
+#pragma region packing
 inline void pack_r(pixel& rgba, channel r) {
 	rgba |= static_cast<pixel>(r);
 }
@@ -34,13 +39,32 @@ inline pixel pack_pixel(channel r, channel g, channel b, channel a) {
 	pack_a(rgba, a);
 	return rgba;
 }
+#pragma endregion
 
-inline void unpack_pixel(pixel rgba, channel& r, channel& g, channel& b, channel& a) {
-	a = (rgba & 0xFF000000) >> 24;
-	b = (rgba & 0x00FF0000) >> 16;
-	g = (rgba & 0x0000FF00) >> 8;
+#pragma region unpacking
+inline void unpack_r(pixel rgba, channel& r) {
 	r = (rgba & 0x000000FF);
 }
+
+inline void unpack_g(pixel rgba, channel& g) {
+	g = (rgba & 0x0000FF00) >> 8;
+}
+
+inline void unpack_b(pixel rgba, channel& b) {
+	b = (rgba & 0x00FF0000) >> 16;
+}
+
+inline void unpack_a(pixel rgba, channel& a) {
+	a = (rgba & 0xFF000000) >> 24;
+}
+
+inline void unpack_pixel(pixel rgba, channel& r, channel& g, channel& b, channel& a) {
+	unpack_r(rgba, r);
+	unpack_g(rgba, g);
+	unpack_b(rgba, b);
+	unpack_a(rgba, a);
+}
+#pragma endregion
 
 int index(int x, int y, int width) {
 	return y * width + x;
@@ -65,8 +89,10 @@ inline void print_channel(channel c) {
 int main() {
 	const int components = 4;
 	int width = 0, height = 0;
-	uint32_t* memory = reinterpret_cast<uint32_t*>(stbi_load("res/test_input.png", &width, &height, nullptr, components));
+	pixel* memory = reinterpret_cast<pixel*>(stbi_load("res/test_input.png", &width, &height, nullptr, components));
 	const int row_bytes = width * components;
+	const int col_bytes = height * components;
+	const int all_bytes = width * height * components;
 
 	pixel before = 0xFCFDFEFF;
 	channel r, g, b, a;
@@ -124,16 +150,45 @@ int main() {
 	pixel p41 = read_pixel(4, 1, width, memory);
 	printf("\nP41 (red)\n");
 	print_pixel(p41);
-	
-	//Make the blue channel of each pixel fully blue:
+
+	//Make a copy of the original image memory so we can restore it after overwriting.
+	pixel* memory_copy = reinterpret_cast<pixel*>(malloc(all_bytes));
+	memcpy(memory_copy, memory, all_bytes);
+
+	//Red tint:
+	memcpy(memory, memory_copy, all_bytes);
 	for (int y = 0; y < height; y++) {
 		for (int x = 0; x < width; x++) {
-			const int i = index(x, y, width);
+			pixel rgba = read_pixel(x, y, width, memory);
+			pack_r(rgba, 0xFF);
+			write_pixel(rgba, x, y, width, memory);
 		}
 	}
+	stbi_write_png("res/test_output_red.png", width, height, components, memory, row_bytes);
 
-	stbi_write_png("res/test_output.png", width, height, components, memory, row_bytes);
-	stbi_image_free(memory);
+	//Green tint:
+	memcpy(memory, memory_copy, all_bytes);
+	for (int y = 0; y < height; y++) {
+		for (int x = 0; x < width; x++) {
+			pixel rgba = read_pixel(x, y, width, memory);
+			pack_g(rgba, 0xFF);
+			write_pixel(rgba, x, y, width, memory);
+		}
+	}
+	stbi_write_png("res/test_output_green.png", width, height, components, memory, row_bytes);
 	
+	//Blue tint:
+	memcpy(memory, memory_copy, all_bytes);
+	for (int y = 0; y < height; y++) {
+		for (int x = 0; x < width; x++) {
+			pixel rgba = read_pixel(x, y, width, memory);
+			pack_b(rgba, 0xFF);
+			write_pixel(rgba, x, y, width, memory);
+		}
+	}
+	stbi_write_png("res/test_output_blue.png", width, height, components, memory, row_bytes);
+
+	stbi_image_free(memory);
+	free(memory_copy);
 	return getchar();
 }
