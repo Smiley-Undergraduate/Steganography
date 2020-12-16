@@ -86,7 +86,19 @@ inline void print_channel(channel c) {
 	printf("%u\n", c);
 }
 
+inline pixel set_bit(pixel rgba, int index) {
+	return rgba | (1 << index);
+}
+
+bool get_bit(pixel rgba, int index) {
+	return rgba & (1 << index);
+}
+
 int main() {
+	int six = 6;						//0110
+	int seven = set_bit(six, 0);		//0111
+	int fourteen = set_bit(six, 3);		//1110
+
 	const int components = 4;
 	int width = 0, height = 0;
 	pixel* memory = reinterpret_cast<pixel*>(stbi_load("res/test_input.png", &width, &height, nullptr, components));
