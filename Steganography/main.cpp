@@ -94,6 +94,28 @@ bool get_bit(pixel rgba, int index) {
 	return rgba & (1 << index);
 }
 
+struct test {
+	char a;
+	float b;
+	char c;
+	long d;
+};
+
+void serialize(const test& t) {
+	//1. Fit pixels to T:
+	//Pixels are 4 bytes, so if T is 5 bytes we need two pixels.
+	const int pixelBase = sizeof(t) / sizeof(pixel);
+	const int pixelAdditional = sizeof(t) % sizeof(pixel);
+	const int pixelTotal = pixelBase + pixelAdditional;
+
+	//2. Fit bits to pixels:
+	//1 pixel is 4 bytes or 32 bits.
+	//Hence, bits needed = pixels needed * 8;
+	const int bitTotal = pixelTotal * 8;
+
+	//3. Save by writing to last bit of each channel!
+}
+
 int main() {
 	int six = 6;						//0110
 	int seven = set_bit(six, 0);		//0111
