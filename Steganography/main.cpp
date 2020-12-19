@@ -2,6 +2,10 @@
 #include <cstdio>
 #include <cstdint>
 
+#include <iostream>
+#include <bitset>
+#include <string>
+
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb/stb_image.h>
 
@@ -10,6 +14,7 @@
 #pragma endregion
 
 #pragma region types
+using byte = uint8_t;
 using channel= uint8_t;
 using pixel = uint32_t;
 #pragma endregion
@@ -86,104 +91,101 @@ inline void print_channel(channel c) {
 	printf("%u\n", c);
 }
 
-inline pixel set_bit(pixel rgba, int index) {
-	return rgba | (1 << index);
+inline byte set_bit_on(byte b, int i) {
+	return b | (1 << i);
 }
 
-bool get_bit(pixel rgba, int index) {
-	return rgba & (1 << index);
+inline byte set_bit_off(byte b, int i)
+{
+	return b & ~(1 << i);
+}
+
+inline bool get_bit(byte b, int i) {
+	return b & (1 << i);
 }
 
 struct test {
-	char a;
-	float b;
-	char c;
-	long d;
+	char arr[3];
 };
 
-void serialize(const test& t) {
-	//1. Fit pixels to T:
-	//Pixels are 4 bytes, so if T is 5 bytes we need two pixels.
-	const int pixelBase = sizeof(t) / sizeof(pixel);
-	const int pixelAdditional = sizeof(t) % sizeof(pixel);
-	const int pixelTotal = pixelBase + pixelAdditional;
+void serialize(const test& t, int xStart, int yStart, int arrayWidth, pixel* memory) {
+	const int bitCount = sizeof(t) * 8;
+	const int byteCount = sizeof(t);
+	const int pixelCount = byteCount / sizeof pixel + (byteCount % sizeof(pixel) == 0 ? 0 : 1);
 
-	//2. Fit bits to pixels:
-	//1 pixel is 4 bytes or 32 bits.
-	//Hence, bits needed = pixels needed * 8;
-	const int bitTotal = pixelTotal * 8;
+	const uint8_t* byteAddress = reinterpret_cast<const uint8_t*>(&t);
+	
+	//for all pixels
+	for (int i = 0; i < pixelCount; i++) {
+		//for all bytes in a pixel (4)
+		for (int i = 0; i < sizeof(pixel); i++) {
+			uint8_t byte = *byteAddress;
+			//for all bytes in a bit (8, highest-to-lowest)
+			for (int i = 7; i >= 0; i--) {
+				//Windows is little endian which is apparently least to most significant bit (right to left ascending rather than left to right).
+				//TLDR I need testing before I write this!
+			}
+			byteAddress++;
+		}
+	}
+}
 
-	//3. Save by writing to last bit of each channel!
+template<typename T>
+std::string to_binary(T t) {
+	std::bitset<sizeof(t) * 8> bits(t);
+	return bits.to_string();
+}
+
+template<typename T>
+void print_binary(T t) {
+	std::cout << to_binary(t) << std::endl;
 }
 
 int main() {
-	int six = 6;						//0110
-	int seven = set_bit(six, 0);		//0111
-	int fourteen = set_bit(six, 3);		//1110
+	//Big endian means the most significant byte is at the lowest address (towards the end of the data).
+	//ie 0x0F01 is 0000 1111 0000 0001  
+
+	//Little endian means the least significant byte is at the lowest address (towards the start of the data).
+	//ie 0x0F01 is 0000 0001 0000 1111
+
+	uint16_t u16 = 0;
+	byte& rl = *reinterpret_cast<byte*>(&u16);			//low (least significant)
+	byte& rh = *(reinterpret_cast<byte*>(&u16) + 1);	//high (most significant)
+	byte* p_rl = &rl;
+	byte* p_rh = &rh;
+
+	rl = 0x01;
+	rh = 0x0F;
+
+	uint16_t* pu16 = &u16;
+	print_binary(u16);
+
+	//Windows is little endian.
+	//Our pixel memory layout is ABGR where A is most significant and R is least significant.
+	//If we set A to 255 and R to 1, our memory should look like:
+	//0000 0001 0000 0000 0000 0000 1111 1111 in little endian!
+
+	pixel rgba = 0;
+	pack_a(rgba, 255);
+	pack_r(rgba, 1);
+	pixel* p_rgba = &rgba;
+	print_binary(rgba);
+
+	pixel hex = 0xFF000001;
+	print_binary(hex);
+
+	//The displays look like big endian. The most significant bits are printed first... No entiendo!
 
 	const int components = 4;
 	int width = 0, height = 0;
+
+	//First five pixels are red, green, blue, black white
+	//Red --> FF0000FF Green --> FF00FF00 Blue --> FFFF0000 Black --> FFFFFFFF White --> FF000000
 	pixel* memory = reinterpret_cast<pixel*>(stbi_load("res/test_input.png", &width, &height, nullptr, components));
+
 	const int row_bytes = width * components;
 	const int col_bytes = height * components;
 	const int all_bytes = width * height * components;
-
-	pixel before = 0xFCFDFEFF;
-	channel r, g, b, a;
-	unpack_pixel(before, r, g, b, a);
-	pixel after = pack_pixel(r, g, b, a);
-
-	//Channels are a, b, g, r (left to right, most to least significant bit) in memory!
-	//Memory of the first 5 pixels for the first two rows:
-
-	//0        //1      //2      //3      //4
-	//red      //green  //blue   //white  //black
-	//ff0000ff ff00ff00 ffff0000 ffffffff ff000000
-
-	//5        //6      //7      //8      //9
-	//black    //white  //blue   //green  //red
-	//ff000000 ffffffff ffff0000 ff00ff00 ff0000ff
-
-	pixel p00 = read_pixel(0, 0, width, memory);
-	printf("P00 (red)\n");
-	print_pixel(p00);
-
-	pixel p10 = read_pixel(1, 0, width, memory);
-	printf("\nP10 (green)\n");
-	print_pixel(p10);
-
-	pixel p20 = read_pixel(2, 0, width, memory);
-	printf("\nP20 (blue)\n");
-	print_pixel(p20);
-
-	pixel p30 = read_pixel(3, 0, width, memory);
-	printf("\nP30 (white)\n");
-	print_pixel(p30);
-
-	pixel p40 = read_pixel(4, 0, width, memory);
-	printf("\nP40 (black)\n");
-	print_pixel(p40);
-
-	printf("\nSecond row:\n");
-	pixel p01 = read_pixel(0, 1, width, memory);
-	printf("P01 (black)\n");
-	print_pixel(p01);
-
-	pixel p11 = read_pixel(1, 1, width, memory);
-	printf("\nP11 (white)\n");
-	print_pixel(p11);
-
-	pixel p21 = read_pixel(2, 1, width, memory);
-	printf("\nP21 (blue)\n");
-	print_pixel(p21);
-
-	pixel p31 = read_pixel(3, 1, width, memory);
-	printf("\nP31 (green)\n");
-	print_pixel(p31);
-
-	pixel p41 = read_pixel(4, 1, width, memory);
-	printf("\nP41 (red)\n");
-	print_pixel(p41);
 
 	//Make a copy of the original image memory so we can restore it after overwriting.
 	pixel* memory_copy = reinterpret_cast<pixel*>(malloc(all_bytes));
