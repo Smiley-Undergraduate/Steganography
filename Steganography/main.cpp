@@ -30,6 +30,15 @@ enum class CHANNEL : int {
 	A
 };
 
+struct test {
+	byte memes1;
+	byte memes2;
+	//char a = 1;
+	//short b = 2;
+	//int c = 3;
+	//long long d = 0xF1;
+};
+
 #pragma region packing
 inline void pack_r(pixel& rgba, channel r) {
 	rgba |= static_cast<pixel>(r);
@@ -153,8 +162,34 @@ inline byte set_bit_off(byte b, int i)
 	return b & ~(1 << i);
 }
 
-inline bool get_bit(byte b, int i) {
+template<typename T>
+inline bool get_bit(T t, int i);
+
+template<>
+inline bool get_bit<byte>(byte b, int i);
+
+template<typename T>
+inline bool get_bit(T t, int i) {
+	assert(i < sizeof T * 8);
+	byte* bytes = reinterpret_cast<byte*>(&t);
+	const int byteIndex = (i / 8);
+	const int bitIndex = i % 8;
+	byte value = bytes[byteIndex];
+	return get_bit(bytes[byteIndex], bitIndex);
+}
+
+template<>
+inline bool get_bit<byte>(byte b, int i) {
 	return b & (1 << i);
+}
+
+std::vector<bool> to_bits(test t) {
+	int bitCount = (sizeof test) * 8;
+	int byteCount = sizeof test;
+	std::vector<bool> result(bitCount);
+	int aids = result.size();
+	printf("aids");
+	return result;
 }
 
 template<typename T>
@@ -168,46 +203,14 @@ void print_binary(T t) {
 	std::cout << to_binary(t) << std::endl;
 }
 
-struct test {
-	long memes;
-	//char a = 1;
-	//short b = 2;
-	//int c = 3;
-	//long long d = 0xF1;
-};
-
 void serialize(const test& t, int xStart, int yStart, int arrayWidth, int arrayHeight, pixel* memory) {
 	//Data is not guaranteed to fit perfectly into pixels.
 	//We ensure we have enough pixels to store our data by analyzing the remainder of bytes divided by bytes per pixel.
 	const int bitCount = sizeof(t) * 8;
 	const int byteCount = bitCount / 8;
 	const int pixelCount = byteCount / sizeof pixel + byteCount % sizeof pixel == 0 ? 0 : 1;
+
 	const uint8_t* byteAddress = reinterpret_cast<const uint8_t*>(&t);
-}
-
-void test_serialize(std::ofstream& output, const test& input) {
-	const int byteCount = sizeof(input);
-	const int bitCount = byteCount * 8;
-	std::vector<bool> bits(bitCount);
-	//std::bitset<bitCount> bits;
-
-	byte* address = reinterpret_cast<byte*>(const_cast<test*>(&input));
-	for (int i = 0; i < byteCount; i++) {
-		for (int j = 7; j >= 0; j--) {
-			bool bit = get_bit(*address, j);
-			bits.push_back(bit);
-		}
-		address++;
-	}
-
-	for (bool i : bits) {
-		int representation = i;
-		output << representation;
-	}
-}
-
-void test_deserialize(std::ifstream& input, test& output) {
-
 }
 
 //Overwrites channel values if pointers are non-null.
@@ -225,38 +228,60 @@ void write(const channel* r, const channel* g, const channel* b, const channel* 
 }
 
 int main() {
-	test t;
-	serialize(t, 0, 0, 0, 0, nullptr);
+	//Windows is Big Endian so most significant bits come first!
+	//00000001 00000010
+	//76543210 FEDCBA98
+	test t{ 1, 2 };
+	print_binary(t.memes1);
+	print_binary(t.memes2);
+
+	bool memesF = get_bit(t, 0xF);
+	bool memesE = get_bit(t, 0xE);
+	bool memesD = get_bit(t, 0xD);
+	bool memesC = get_bit(t, 0xC);
+	bool memesB = get_bit(t, 0xB);
+	bool memesA = get_bit(t, 0xA);
+	bool memes9 = get_bit(t, 0x9);
+	bool memes8 = get_bit(t, 0x8);
 	
-	//1. Serialize test
+	bool memes7 = get_bit(t, 0x7);
+	bool memes6 = get_bit(t, 0x6);
+	bool memes5 = get_bit(t, 0x5);
+	bool memes4 = get_bit(t, 0x4);
+	bool memes3 = get_bit(t, 0x3);
+	bool memes2 = get_bit(t, 0x2);
+	bool memes1 = get_bit(t, 0x1);
+	bool memes0 = get_bit(t, 0x0);
+
+	int bits = sizeof t * 8;
+	int bytes = bits / 8;
+
+	//b8 is true as expected.
+	//bool bF = get_bit(t.memes1, 0x7);
+	//bool bE = get_bit(t.memes1, 0x6);
+	//bool bD = get_bit(t.memes1, 0x5);
+	//bool bC = get_bit(t.memes1, 0x4);
+	//bool bB = get_bit(t.memes1, 0x3);
+	//bool bA = get_bit(t.memes1, 0x2);
+	//bool b9 = get_bit(t.memes1, 0x1);
+	//bool b8 = get_bit(t.memes1, 0x0);
+
+	//b1 is true as expected.
+	//bool b7 = get_bit(t.memes2, 0x7);
+	//bool b6 = get_bit(t.memes2, 0x6);
+	//bool b5 = get_bit(t.memes2, 0x5);
+	//bool b4 = get_bit(t.memes2, 0x4);
+	//bool b3 = get_bit(t.memes2, 0x3);
+	//bool b2 = get_bit(t.memes2, 0x2);
+	//bool b1 = get_bit(t.memes2, 0x1);
+	//bool b0 = get_bit(t.memes2, 0x0);
+
 	//std::ofstream output("test.txt");
-	//test_serialize(output, t);
 	//output.close();
-
-	//2. Deserialize test
 	//std::ifstream input("test.txt");
+	//input.close();
 
-
-	//Big endian puts the most significant bit (largest value) first.
-	//Litte endian puts the least significant bit (smallest value) first.
-	uint16_t memes = 0x0301;
-	uint16_t u16 = 0;
-	byte& rl = *reinterpret_cast<byte*>(&u16);
-	byte& rh = *(reinterpret_cast<byte*>(&u16) + 1);
-	rl = 0x01;
-	rh = 0x03;
-	print_binary(u16);
-	print_binary(memes);
-
-	//Windows is big endian and most significant bits are being displayed first. Everything checks out!
-	pixel rgba = 0;
-	pack_a(rgba, 255);
-	pack_r(rgba, 1);
-	print_binary(rgba);
-	pixel hex = 0xFF000001;
-	print_binary(hex);
-
-	/*const int components = 4;
+	const int components = 4;
 	int width = 0, height = 0;
 
 	//First five pixels are red, green, blue, black white
@@ -269,7 +294,7 @@ int main() {
 	const channel full = 0xFF;
 
 	//Make a copy of the original image memory so we can restore it after overwriting.
-	pixel* memory_copy = static_cast<pixel*>(malloc(all_bytes));
+	/*pixel* memory_copy = static_cast<pixel*>(malloc(all_bytes));
 	memcpy(memory_copy, memory, all_bytes);
 
 	memcpy(memory, memory_copy, all_bytes);
@@ -289,3 +314,24 @@ int main() {
 	printf("Done!\n");
 	return getchar();
 }
+
+/*
+	//Big endian puts the most significant bit (largest value) first.
+	//Litte endian puts the least significant bit (smallest value) first.
+	uint16_t memes = 0x0301;
+	uint16_t u16 = 0;
+	byte& rl = *reinterpret_cast<byte*>(&u16);
+	byte& rh = *(reinterpret_cast<byte*>(&u16) + 1);
+	rl = 0x01;
+	rh = 0x03;
+	print_binary(u16);
+	print_binary(memes);
+
+	//Windows is big endian and most significant bits are being displayed first. Everything checks out!
+	pixel rgba = 0;
+	pack_a(rgba, 255);
+	pack_r(rgba, 1);
+	print_binary(rgba);
+	pixel hex = 0xFF000001;
+	print_binary(hex);
+*/
