@@ -173,7 +173,7 @@ inline bool get_bit(T t, int i) {
 	assert(i < sizeof T * 8);
 	byte* bytes = reinterpret_cast<byte*>(&t);
 	const int byteIndex = (i / 8);
-	const int bitIndex = i % 8;
+	const int bitIndex = 7 - i % 8;
 	byte value = bytes[byteIndex];
 	return get_bit(bytes[byteIndex], bitIndex);
 }
@@ -228,30 +228,30 @@ void write(const channel* r, const channel* g, const channel* b, const channel* 
 }
 
 int main() {
-	//Windows is Big Endian so most significant bits come first!
 	//00000001 00000010
+	//Windows is Big Endian so most significant bits come first!
 	//76543210 FEDCBA98
+	//But, I've flipped my getter so access is as follows: 
+	//01234567 89ABCDEF
 	test t{ 1, 2 };
-	print_binary(t.memes1);
-	print_binary(t.memes2);
 
-	bool memesF = get_bit(t, 0xF);
-	bool memesE = get_bit(t, 0xE);
-	bool memesD = get_bit(t, 0xD);
-	bool memesC = get_bit(t, 0xC);
-	bool memesB = get_bit(t, 0xB);
-	bool memesA = get_bit(t, 0xA);
-	bool memes9 = get_bit(t, 0x9);
-	bool memes8 = get_bit(t, 0x8);
-	
-	bool memes7 = get_bit(t, 0x7);
-	bool memes6 = get_bit(t, 0x6);
-	bool memes5 = get_bit(t, 0x5);
-	bool memes4 = get_bit(t, 0x4);
-	bool memes3 = get_bit(t, 0x3);
-	bool memes2 = get_bit(t, 0x2);
-	bool memes1 = get_bit(t, 0x1);
 	bool memes0 = get_bit(t, 0x0);
+	bool memes1 = get_bit(t, 0x1);
+	bool memes2 = get_bit(t, 0x2);
+	bool memes3 = get_bit(t, 0x3);
+	bool memes4 = get_bit(t, 0x4);
+	bool memes5 = get_bit(t, 0x5);
+	bool memes6 = get_bit(t, 0x6);
+	bool memes7 = get_bit(t, 0x7);
+
+	bool memes8 = get_bit(t, 0x8);
+	bool memes9 = get_bit(t, 0x9);
+	bool memesA = get_bit(t, 0xA);
+	bool memesB = get_bit(t, 0xB);
+	bool memesC = get_bit(t, 0xC);
+	bool memesD = get_bit(t, 0xD);
+	bool memesE = get_bit(t, 0xE);
+	bool memesF = get_bit(t, 0xF);
 
 	int bits = sizeof t * 8;
 	int bytes = bits / 8;
