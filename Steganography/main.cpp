@@ -39,6 +39,11 @@ struct test {
 	//long long d = 0xF1;
 };
 
+struct access {
+	int byteIndex = 0;
+	int bitIndex = 0;
+};
+
 #pragma region packing
 inline void pack_r(pixel& rgba, channel r) {
 	rgba |= static_cast<pixel>(r);
@@ -153,13 +158,10 @@ inline void print_channel(channel c) {
 	printf("%u\n", c);
 }
 
-inline byte set_bit_on(byte b, int i) {
-	return b | (1 << i);
-}
-
-inline byte set_bit_off(byte b, int i)
-{
-	return b & ~(1 << i);
+template<typename T>
+inline access access_bit(const T& t, int i) {
+	assert(i < sizeof T * 8);
+	return { (i / 8), 7 - i % 8 };
 }
 
 template<typename T>
@@ -169,13 +171,47 @@ template<>
 inline bool get_bit<byte>(byte b, int i);
 
 template<typename T>
-inline bool get_bit(T t, int i) {
-	assert(i < sizeof T * 8);
+inline void set_bit_on(T& t, int i);
+
+template<>
+inline void set_bit_on<byte>(byte& b, int i);
+
+template<typename T>
+inline void set_bit_off(T& t, int i);
+
+template<>
+inline void set_bit_off<byte>(byte& b, int i);
+
+template<typename T>
+inline void set_bit_on(T& t, int i) {
+	access indices = access_bit(t, i);
 	byte* bytes = reinterpret_cast<byte*>(&t);
-	const int byteIndex = (i / 8);
-	const int bitIndex = 7 - i % 8;
-	byte value = bytes[byteIndex];
-	return get_bit(bytes[byteIndex], bitIndex);
+	set_bit_on(bytes[indices.byteIndex], indices.bitIndex);
+}
+
+template<>
+inline void set_bit_on<byte>(byte& b, int i) {
+	b = b | (1 << i);
+}
+
+template<typename T>
+inline void set_bit_off(T& t, int i) {
+	access indices = access_bit(t, i);
+	byte* bytes = reinterpret_cast<byte*>(&t);
+	set_bit_off(bytes[indices.byteIndex], indices.bitIndex);
+}
+
+template<>
+inline void set_bit_off<byte>(byte& b, int i)
+{
+	b = b & ~(1 << i);
+}
+
+template<typename T>
+inline bool get_bit(T t, int i) {
+	access indices = access_bit(t, i);
+	byte* bytes = reinterpret_cast<byte*>(&t);
+	return get_bit(bytes[indices.byteIndex], indices.bitIndex);
 }
 
 template<>
@@ -228,12 +264,9 @@ void write(const channel* r, const channel* g, const channel* b, const channel* 
 }
 
 int main() {
-	//00000001 00000010
-	//Windows is Big Endian so most significant bits come first!
-	//76543210 FEDCBA98
-	//But, I've flipped my getter so access is as follows: 
-	//01234567 89ABCDEF
-	test t{ 1, 2 };
+	test t{ 0xFF, 0xFF };
+	set_bit_off(t, 0x7);
+	set_bit_off(t, 0xE);
 
 	bool memes0 = get_bit(t, 0x0);
 	bool memes1 = get_bit(t, 0x1);
